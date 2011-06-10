@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+
+import daemon
+import aacraid
+import signal
+import os
+from time import sleep
+import smtplib
+from email.MIMEMultipart import MIMEMultipart
+from email.MIMEText import MIMEText
+from email.utils import formatdate
+
+#settings
+smtp_server = 'localhost'
+smtp_port = 25
+smtp_user = None
+smtp_pass = None
+
+mail_subject = 'RAID Controller Status on %s' % os.uname()[1]
+mail_from = 'raid@example.com'
+mail_to = 'root@example.com'
+
+sleeptime = 5*60
+
+running = True
+controllers = 0
+last_status = {}
+
+def aacraidd_start():
+    global controllers
+    print "Starting aacraidd"
+    controllers = aacraid.get_num_controllers()
+    print "Found %i controller(s)" % controllers
+    for c in range(1,controllers+1):
+        i = aacraid.get_controller_info(c)
+        print "%(id)s | %(model)s | %(status)s" % i
+        last_status[i['id']] = i['last'] = i['status']
+        if i['status'] != 'Optimal':
+            notify_change(i)
+    aacraidd()
+
+def aacraidd_stop(sig, b):
+    global running
+    print "Terminating aacraidd on signal %s" % sig
+    running = False
+
+def aacraidd():
+    global last_status
+    while running:
+        sleep(sleeptime)
+        for c in range(1,controllers+1):
+            i = aacraid.get_controller_info(c)
+            if last_status[i['id']] != i['status']:
+                i['last'] = last_status[i['id']]
+                try:
+                    notify_change(i)
+                    last_status[i['id']] = i['status']
+                except:
+                    pass
+
+def notify_change(controller):
+    s = smtplib.SMTP(smtp_server, smtp_port)
+    if smtp_user and smtp_pass:
+        s.login(smtp_user, smtp_pass)
+
+    msg = MIMEMultipart()
+    msg['Subject'] = mail_subject
+    msg['From'] = mail_from
+    msg['To'] = mail_to
+    msg['Date'] = formatdate()
+    mail_text = "Controller %(id)s changed state from %(last)s to %(status)s.\n\nCurrent controller information:\n" % controller
+    mail_text += aacraid.pretty_info(controller['numid'])
+    print '--- %s ---' % msg['Date']
+    print mail_text
+    text = MIMEText(mail_text, 'plain', 'utf-8')
+    msg.attach(text)
+
+    s.sendmail(mail_from, mail_to, msg.as_string())
+    s.quit()
+
+context = daemon.DaemonContext(
+    stdout=open('log.log', 'a'),
+    stderr=open('err.log', 'a')
+    )
+
+context.signal_map = {
+    signal.SIGTERM: aacraidd_stop,
+    signal.SIGHUP: 'terminate',
+    }
+
+with context:
+    aacraidd_start()
