@@ -14,6 +14,7 @@ from email.utils import formatdate
 
 from ConfigParser import SafeConfigParser
 from optparse import OptionParser
+import logging
 
 parser = OptionParser(version='0.1')
 parser.add_option("-c", "--config", dest="conffile",
@@ -50,6 +51,8 @@ else:
 mail_subject = config.get('aacraidd', 'mail_subject')
 mail_from = config.get('aacraidd', 'mail_from')
 mail_to = config.get('aacraidd', 'mail_to')
+
+log_file = config.get('aacraidd', 'log_file')
  
 sleeptime = config.getint('aacraidd', 'sleeptime')
 
@@ -59,20 +62,21 @@ last_status = {}
 
 def aacraidd_start():
     global controllers
-    print "Starting aacraidd"
+    logging.info("Starting aacraidd")
     controllers = aacraid.get_num_controllers()
-    print "Found %i controller(s)" % controllers
+    logging.info("Found %i controller(s)" % controllers)
     for c in range(1,controllers+1):
         i = aacraid.get_controller_info(c)
-        print "%(id)s | %(model)s | %(status)s" % i
+        logging.info("%(id)s | %(model)s | %(status)s" % i)
         last_status[i['id']] = i['last'] = i['status']
         if i['status'] != 'Optimal':
             notify_change(i)
+            logging.warning("Controller %(id)s not in optimal state" % i)
     aacraidd()
 
 def aacraidd_stop(sig, b):
     global running
-    print "Terminating aacraidd on signal %s" % sig
+    logging.info( "Terminating aacraidd on signal %s" % sig)
     running = False
 
 def aacraidd():
@@ -101,8 +105,8 @@ def notify_change(controller):
     msg['Date'] = formatdate()
     mail_text = "Controller %(id)s changed state from %(last)s to %(status)s.\n\nCurrent controller information:\n" % controller
     mail_text += aacraid.pretty_info(controller['numid'])
-    print '--- %s ---' % msg['Date']
-    print mail_text
+    for line in mail_text.splitlines():
+        logging.warn(line.strip())
     text = MIMEText(mail_text, 'plain', 'utf-8')
     msg.attach(text)
 
@@ -110,16 +114,18 @@ def notify_change(controller):
     s.quit()
 
 if options.debug:
+    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
     context = daemon.DaemonContext(
         detach_process=False,
         stdout=sys.stdout,
         stderr=sys.stderr
         )
 else:
+    log = open(log_file, 'a')
+    logging.basicConfig(stream=log, format='%(asctime)s:%(levelname)s:%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
     context = daemon.DaemonContext(
         detach_process=True,
-        stdout=open('log.log', 'a'),
-        stderr=open('err.log', 'a')
+        files_preserve = [log]
         )
 
 context.signal_map = {
