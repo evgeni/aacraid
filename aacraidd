@@ -40,13 +40,16 @@ if not os.path.isfile(options.conffile):
 config = SafeConfigParser()
 config.read(options.conffile)
 
-smtp_server = config.get('aacraidd', 'smtp_server')
-smtp_port = config.getint('aacraidd', 'smtp_port')
-if config.has_option('aacraidd', 'smtp_user') and config.has_option('aacraidd', 'smtp_pass'):
-    smtp_user = config.get('aacraidd', 'smtp_user')
-    smtp_pass = config.get('aacraidd', 'smtp_pass')
+smtp_enabled = config.getboolean('aacraidd', 'smtp_enabled')
+
+if smtp_enabled:
+    smtp_server = config.get('aacraidd', 'smtp_server')
+    smtp_port = config.getint('aacraidd', 'smtp_port')
+    if config.has_option('aacraidd', 'smtp_user') and config.has_option('aacraidd', 'smtp_pass'):
+        smtp_user = config.get('aacraidd', 'smtp_user')
+        smtp_pass = config.get('aacraidd', 'smtp_pass')
 else:
-    smtp_user = smtp_pass = None
+    smtp_server = smtp_port = smtp_user = smtp_pass = None
 
 mail_subject = config.get('aacraidd', 'mail_subject')
 mail_from = config.get('aacraidd', 'mail_from')
@@ -94,6 +97,14 @@ def aacraidd():
                     pass
 
 def notify_change(controller):
+    mail_text = "Controller %(id)s changed state from %(last)s to %(status)s.\n\nCurrent controller information:\n" % controller
+    mail_text += aacraid.pretty_info(controller['numid'])
+    for line in mail_text.splitlines():
+        logging.warn(line.strip())
+
+    if not smtp_enabled:
+        return
+
     s = smtplib.SMTP(smtp_server, smtp_port)
     if smtp_user and smtp_pass:
         s.login(smtp_user, smtp_pass)
@@ -103,10 +114,6 @@ def notify_change(controller):
     msg['From'] = mail_from
     msg['To'] = mail_to
     msg['Date'] = formatdate()
-    mail_text = "Controller %(id)s changed state from %(last)s to %(status)s.\n\nCurrent controller information:\n" % controller
-    mail_text += aacraid.pretty_info(controller['numid'])
-    for line in mail_text.splitlines():
-        logging.warn(line.strip())
     text = MIMEText(mail_text, 'plain', 'utf-8')
     msg.attach(text)
 
