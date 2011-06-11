@@ -4,6 +4,7 @@ import daemon
 import aacraid
 import signal
 import os
+import sys
 from time import sleep
 
 import smtplib
@@ -12,9 +13,31 @@ from email.MIMEText import MIMEText
 from email.utils import formatdate
 
 from ConfigParser import SafeConfigParser
+from optparse import OptionParser
+
+parser = OptionParser(version='0.1')
+parser.add_option("-c", "--config", dest="conffile",
+                  help="load configuration from CONFFILE")
+parser.add_option("-d", "--debug",
+                  action="store_true", dest="debug",
+                  help="don't daemonize the process and log to stdout")
+(options, args) = parser.parse_args()
+
+if not options.conffile:
+    if os.path.isfile('/etc/aacraidd/aacraidd.conf'):
+        options.conffile = '/etc/aacraidd/aacraidd.conf'
+    elif os.path.isfile('aacraidd.conf'):
+        options.conffile = 'aacraidd.conf'
+    else:
+        print "Could not find a configuration file, exiting."
+        sys.exit(1)
+
+if not os.path.isfile(options.conffile):
+    print "Could not find the configuration file at %s, exiting." % options.conffile
+    sys.exit(1)
 
 config = SafeConfigParser()
-config.read('aacraidd.conf')
+config.read(options.conffile)
 
 smtp_server = config.get('aacraidd', 'smtp_server')
 smtp_port = config.getint('aacraidd', 'smtp_port')
@@ -86,10 +109,18 @@ def notify_change(controller):
     s.sendmail(mail_from, mail_to, msg.as_string())
     s.quit()
 
-context = daemon.DaemonContext(
-    stdout=open('log.log', 'a'),
-    stderr=open('err.log', 'a')
-    )
+if options.debug:
+    context = daemon.DaemonContext(
+        detach_process=False,
+        stdout=sys.stdout,
+        stderr=sys.stderr
+        )
+else:
+    context = daemon.DaemonContext(
+        detach_process=True,
+        stdout=open('log.log', 'a'),
+        stderr=open('err.log', 'a')
+        )
 
 context.signal_map = {
     signal.SIGTERM: aacraidd_stop,
