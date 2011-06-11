@@ -5,22 +5,30 @@ import aacraid
 import signal
 import os
 from time import sleep
+
 import smtplib
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEText import MIMEText
 from email.utils import formatdate
 
-#settings
-smtp_server = 'localhost'
-smtp_port = 25
-smtp_user = None
-smtp_pass = None
+from ConfigParser import SafeConfigParser
 
-mail_subject = 'RAID Controller Status on %s' % os.uname()[1]
-mail_from = 'raid@example.com'
-mail_to = 'root@example.com'
+config = SafeConfigParser()
+config.read('aacraidd.conf')
 
-sleeptime = 5*60
+smtp_server = config.get('aacraidd', 'smtp_server')
+smtp_port = config.getint('aacraidd', 'smtp_port')
+if config.has_option('aacraidd', 'smtp_user') and config.has_option('aacraidd', 'smtp_pass'):
+    smtp_user = config.get('aacraidd', 'smtp_user')
+    smtp_pass = config.get('aacraidd', 'smtp_pass')
+else:
+    smtp_user = smtp_pass = None
+
+mail_subject = config.get('aacraidd', 'mail_subject')
+mail_from = config.get('aacraidd', 'mail_from')
+mail_to = config.get('aacraidd', 'mail_to')
+ 
+sleeptime = config.getint('aacraidd', 'sleeptime')
 
 running = True
 controllers = 0
