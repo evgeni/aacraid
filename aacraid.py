@@ -1,9 +1,13 @@
-arcconf = 'arcconf'
-
 import subprocess
 import re
+import os
 
 segmentfind = re.compile(r'(\d+,\d+)')
+
+for p in os.environ['PATH'].split(os.path.pathsep)+['/usr/StorMan/']:
+    if os.path.isfile(os.path.join(p, 'arcconf')):
+        arcconf = os.path.join(p, 'arcconf')
+        break
 
 if not hasattr(subprocess, 'check_output'):
     # see https://gist.github.com/839684
