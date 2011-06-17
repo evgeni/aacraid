@@ -44,14 +44,14 @@ config.read(options.conffile)
 
 smtp_enabled = config.getboolean('aacraidd', 'smtp_enabled')
 
+smtp_server = smtp_port = smtp_user = smtp_pass = None
+
 if smtp_enabled:
     smtp_server = config.get('aacraidd', 'smtp_server')
     smtp_port = config.getint('aacraidd', 'smtp_port')
     if config.has_option('aacraidd', 'smtp_user') and config.has_option('aacraidd', 'smtp_pass'):
         smtp_user = config.get('aacraidd', 'smtp_user')
         smtp_pass = config.get('aacraidd', 'smtp_pass')
-else:
-    smtp_server = smtp_port = smtp_user = smtp_pass = None
 
 mail_subject = config.get('aacraidd', 'mail_subject')
 mail_from = config.get('aacraidd', 'mail_from')
