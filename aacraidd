@@ -3,6 +3,7 @@
 from __future__ import with_statement
 
 import daemon
+import daemon.pidlockfile
 import aacraid
 import signal
 import os
@@ -58,7 +59,8 @@ mail_from = config.get('aacraidd', 'mail_from')
 mail_to = config.get('aacraidd', 'mail_to')
 
 log_file = config.get('aacraidd', 'log_file')
- 
+pid_file = config.get('aacraidd', 'pid_file')
+
 sleeptime = config.getint('aacraidd', 'sleeptime')
 
 running = True
@@ -136,6 +138,8 @@ else:
         detach_process=True,
         files_preserve = [log]
         )
+    pid = daemon.pidlockfile.PIDLockFile(pid_file)
+    context.pidfile = pid
 
 context.signal_map = {
     signal.SIGTERM: aacraidd_stop,
