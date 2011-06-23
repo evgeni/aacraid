@@ -4,10 +4,13 @@ import os
 
 segmentfind = re.compile(r'(\d+,\d+)')
 
+arcconf = None
 for p in os.environ['PATH'].split(os.path.pathsep)+['/usr/StorMan/']:
     if os.path.isfile(os.path.join(p, 'arcconf')):
         arcconf = os.path.join(p, 'arcconf')
         break
+if not arcconf:
+    raise OSError(2, 'No such file or directory: arcconf')
 
 if not hasattr(subprocess, 'check_output'):
     # see https://gist.github.com/839684
