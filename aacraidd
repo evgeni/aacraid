@@ -136,7 +136,9 @@ else:
     logging.basicConfig(stream=log, format='%(asctime)s:%(levelname)s:%(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.DEBUG)
     context = daemon.DaemonContext(
         detach_process=True,
-        files_preserve = [log]
+        files_preserve = [log],
+        stdout=log,
+        stderr=log,
         )
     pid = daemon.pidlockfile.PIDLockFile(pid_file)
     context.pidfile = pid
